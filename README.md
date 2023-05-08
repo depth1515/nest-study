@@ -460,3 +460,116 @@ DATABASE_PASSWORD=test
    ```
 
 添加了上述通用性基础配置后的工程模板能基本满足一个小型的业务需求，如果还有其他要求的话可以增减功能或者修改某些配置来适配，总体还是看团队自身的业务需求来定制，比如团队中有统一权限控制的插件或者构建服务的脚本都可以放在工程模板中，方便其他同学开箱即用。
+
+## 接入飞书
+
+### 创建应用
+
+### 封装底层请求库
+
+虽然 `NestJS` 内置了 `@nestjs/axios` 请求库，但是对于飞书的 `Open API` 封装，我们还是利用之前的模式，不将它与 `NestJS` 过度的耦合在一起。
+
+> 将飞书 `Open Api` 独立封装之后，可以抽成一个工具库，后期可以提供给其他的 `SDK` 使用，如果跟 `NestJS` 耦合过多，再想提供给其他 `SDK` 使用，就只能提供 `HTTP` 请求调用的方式，这样使用起来不太方便。看个人习惯，我倾向使用独立封装的模式。
+
+1. 添加应用配置，使用上一章节的环境配置功能，在 yaml 文件中添加飞书的配置项：
+
+   ```yaml
+   FEISHU_CONFIG:
+   FEISHU_URL: https://open.feishu.cn/open-apis
+   FEISHU_API_HOST: https://open.feishu.cn
+   FEISHU_APP_ID: balabalabala
+   FEISHU_APP_SECRET: balabalabala
+   ```
+
+2. 新建 utils/request.ts 文件
+
+   ```typescript
+   import axios, { Method } from 'axios';
+   import { getConfig } from '@/utils';
+
+   const {
+     FEISHU_CONFIG: { FEISHU_URL },
+   } = getConfig();
+
+   /**
+    * @description: 任意请求
+    */
+   const request = async ({ url, option = {} }) => {
+     try {
+       return axios.request({
+         url,
+         ...option,
+       });
+     } catch (error) {
+       throw error;
+     }
+   };
+
+   interface IMethodV {
+     url: string;
+     method?: Method;
+     headers?: { [key: string]: string };
+     params?: Record<string, unknown>;
+     query?: Record<string, unknown>;
+   }
+
+   export interface IRequest {
+     data: any;
+     code: number;
+   }
+
+   /**
+    * @description: 带 version 的通用 api 请求
+    */
+   const methodV = async ({
+     url,
+     method,
+     headers,
+     params = {},
+     query = {},
+   }: IMethodV): Promise<IRequest> => {
+     let sendUrl = '';
+     if (/^(http:\/\/|https:\/\/)/.test(url)) {
+       sendUrl = url;
+     } else {
+       sendUrl = `${FEISHU_URL}${url}`;
+     }
+     try {
+       return new Promise((resolve, reject) => {
+         axios({
+           headers: {
+             'Content-Type': 'application/json; charset=utf-8',
+             ...headers,
+           },
+           url: sendUrl,
+           method,
+           params: query,
+           data: {
+             ...params,
+           },
+         })
+           .then(({ data, status }) => {
+             resolve({ data, code: status });
+           })
+           .catch((error) => {
+             reject(error);
+           });
+       });
+     } catch (error) {
+       throw error;
+     }
+   };
+
+   export { request, methodV };
+   ```
+
+3. 创建飞书请求基础层
+
+   ```
+   helper
+       - feishu
+           - auth.ts
+           - const.ts
+           - type.ts
+           - user.ts
+   ```
