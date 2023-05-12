@@ -14,6 +14,8 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { BusinessException } from 'src/common/exceptions/business.exception';
 import { ConfigService } from '@nestjs/config';
+import { ApiOperation } from '@nestjs/swagger';
+import { AddUserDto } from './user.dto';
 
 @Controller({
   path: 'user',
@@ -24,6 +26,14 @@ export class UserController {
     private readonly userService: UserService,
     private readonly configService: ConfigService,
   ) {}
+
+  @ApiOperation({
+    summary: '新增用户',
+  })
+  @Post('/add')
+  createOrSave(@Body() user: AddUserDto) {
+    return this.userService.createOrSave(user);
+  }
 
   @Post()
   create(@Body() createUserDto: CreateUserDto) {

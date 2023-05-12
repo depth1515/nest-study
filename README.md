@@ -460,3 +460,267 @@ DATABASE_PASSWORD=test
    ```
 
 添加了上述通用性基础配置后的工程模板能基本满足一个小型的业务需求，如果还有其他要求的话可以增减功能或者修改某些配置来适配，总体还是看团队自身的业务需求来定制，比如团队中有统一权限控制的插件或者构建服务的脚本都可以放在工程模板中，方便其他同学开箱即用。
+
+## 数据库
+
+### 封装
+
+1. 安装依赖
+
+   ```shell
+   npm i typeorm mysql2 mongoose
+   ```
+
+2. 在 dev.yaml 中添加数据库配置参数。
+
+   ```yaml
+   MONGODB_CONFIG:
+     name: 'fast_gateway_test' # 自定义次数据库链接名称
+     type: mongodb # 数据库链接类型
+     url: 'mongodb://localhost:27017' # 数据库链接地址
+     username: 'xxxx' # 数据库链接用户名
+     password: '123456' # 数据库链接密码
+     database: 'fast_gateway_test' # 数据库名
+     entities: 'mongo' # 自定义加载类型
+     logging: false # 数据库打印日志
+     synchronize: true # 是否开启同步数据表功能
+   ```
+
+3. 新建 `src/common/database/database.providers.ts`
+
+   ```typescript
+   import { DataSource, DataSourceOptions } from 'typeorm';
+   import { getConfig } from 'src/utils/index';
+   const path = require('path');
+
+   // 设置数据库类型
+   const databaseType: DataSourceOptions['type'] = 'mongodb';
+   const { MONGODB_CONFIG } = getConfig();
+
+   const MONGODB_DATABASE_CONFIG = {
+     ...MONGODB_CONFIG,
+     type: databaseType,
+     entities: [
+       path.join(
+         __dirname,
+         `../../**/*.${MONGODB_CONFIG.entities}.entity{.ts,.js}`,
+       ),
+     ],
+   };
+
+   const MONGODB_DATA_SOURCE = new DataSource(MONGODB_DATABASE_CONFIG);
+
+   // 数据库注入
+   export const DatabaseProviders = [
+     {
+       provide: 'MONGODB_DATA_SOURCE',
+       useFactory: async () => {
+         await MONGODB_DATA_SOURCE.initialize();
+         return MONGODB_DATA_SOURCE;
+       },
+     },
+   ];
+   ```
+
+4. 新建 `database.module.ts`
+
+   ```typescript
+   import { Module } from '@nestjs/common';
+   import { DatabaseProviders } from './database.providers';
+
+   @Module({
+     providers: [...DatabaseProviders],
+     exports: [...DatabaseProviders],
+   })
+   export class DatabaseModule {}
+   ```
+
+### 使用
+
+1. 注册实体，创建 src/user/user.mongo.entity.ts
+
+   ```typescript
+   import { Entity, Column, UpdateDateColumn, ObjectIdColumn } from 'typeorm';
+
+   @Entity()
+   export class User {
+     @ObjectIdColumn()
+     id?: number;
+
+     @Column({ default: null })
+     name: string;
+   }
+   ```
+
+   此外应该注意我们创建的实体类文件命名后缀为 entity.ts，而在上文数据库连接的配置中有一个 entities 参数：
+
+   所以想使用 MySQL 又同时想使用自动注册这个功能的话，一定要区分后缀名，不然会出现混乱注册的情况，mysql 的配置例如下面所示：
+
+   ```yaml
+   MYSQL_CONFIG:
+     name: 'user-test'
+     type: 'mysql'
+     host: 'localhost'
+     port: 3306
+     username: 'xxxx'
+     password: '123456'
+     database: 'user-test'
+     entities: 'mysql' # 这里的命名一定要跟 MongoDB 里面的配置命名区分开
+     synchronize: true
+   ```
+
+2. 创建 user.providers.ts：
+
+   ```typescript
+   import { User } from './user.mongo.entity';
+
+   export const UserProviders = [
+     {
+       provide: 'USER_REPOSITORY',
+       useFactory: async (AppDataSource) =>
+         await AppDataSource.getRepository(User),
+       inject: ['MONGODB_DATA_SOURCE'],
+     },
+   ];
+   ```
+
+3. 创建 user.service.ts，新增添加用户 service：
+
+   ```typescript
+   import { In, Like, Raw, MongoRepository } from 'typeorm';
+   import { Injectable, Inject } from '@nestjs/common';
+   import { User } from './user.mongo.entity';
+
+   @Injectable()
+   export class UserService {
+     constructor(
+       @Inject('USER_REPOSITORY')
+       private userRepository: MongoRepository<User>,
+     ) {}
+
+     createOrSave(user) {
+       return this.userRepository.save(user);
+     }
+   }
+   ```
+
+4. 创建 user.controller.ts，添加新增用户的 http 请求方法:
+
+   ```typescript
+   import { Controller, Post, Body, Query, Get } from '@nestjs/common';
+   import { UserService } from './user.service';
+   import { AddUserDto } from './user.dto';
+
+   @ApiTags('用户')
+   @Controller('user')
+   export class UserController {
+     constructor(private readonly userService: UserService) {}
+
+     @ApiOperation({
+       summary: '新增用户',
+     })
+     @Post('/add')
+     create(@Body() user: AddUserDto) {
+       return this.userService.createOrSave(user);
+     }
+   }
+   ```
+
+   user.dto.ts 的内容如下：
+
+   ```typescript
+   import { ApiProperty } from '@nestjs/swagger';
+   import { IsNotEmpty } from 'class-validator';
+   export class AddUserDto {
+     @ApiProperty({ example: 123 })
+     id?: string;
+
+     @ApiProperty({ example: 'cookie' })
+     @IsNotEmpty()
+     name: string;
+
+     @ApiProperty({ example: 'cookieboty@qq.com' })
+     @IsNotEmpty()
+     email: string;
+
+     @ApiProperty({ example: 'cookieboty' })
+     @IsNotEmpty()
+     username: string;
+   }
+   ```
+
+5. 创建 user.module.ts，将 controller、providers、service 等都引入后，切记将 user.module.ts 导入 app.module.ts 后才会生效，这一步别忘记了 :
+
+   ```typescript
+   import { Module } from '@nestjs/common';
+   import { DatabaseModule } from '@/common/database/database.module';
+   import { UserController } from './user.controller';
+   import { UserService } from './user.service';
+   import { UserProviders } from './user.providers';
+   import { FeishuController } from './feishu/feishu.controller';
+   import { FeishuService } from './feishu/feishu.service';
+
+   @Module({
+     imports: [DatabaseModule],
+     controllers: [FeishuController, UserController],
+     providers: [...UserProviders, UserService, FeishuService],
+     exports: [UserService],
+   })
+   export class UserModule {}
+   ```
+
+## 静态资源与模板渲染
+
+### 静态资源
+
+1.  安装包
+
+    ```shell
+    npm i --save @fastify/static
+    ```
+
+2.  配置路径
+
+    ```typescript
+    app.useStaticAssets({
+    root: join(\_\_dirname, '..', 'public'),
+    prefix: '/public/',
+    });
+    ```
+
+### 模板渲染
+
+1. 安装包，使用 `handlebars` 模板引擎
+
+   ```shell
+   npm i --save @fastify/static @fastify/view handlebars
+   ```
+
+2. 配置 `main.ts`
+
+   ```typescript
+   app.setViewEngine({
+     engine: {
+       handlebars: require('handlebars'),
+     },
+     templates: join(__dirname, '..', 'views'),
+   });
+   ```
+
+3. 配置 `nest-cli.json`
+
+   ```json
+   "assets": [
+     {
+       "include": "../public",
+       "outDir": "dist/public",
+       "watchAssets": true
+     },
+     {
+       "include": "../views",
+       "outDir": "dist/views",
+       "watchAssets": true
+     }
+   ],
+   "watchAssets": true
+   ```

@@ -6,7 +6,7 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-    "build": "nest build",
+    "build": "cross-env RUNNING_ENV=dev nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "cross-env RUNNING_ENV=dev nest start --watch",
@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@fastify/static": "^6.10.1",
+    "@fastify/view": "^7.4.1",
     "@nestjs/common": "^9.0.0",
     "@nestjs/config": "^2.3.1",
     "@nestjs/core": "^9.0.0",
@@ -28,9 +29,14 @@
     "@nestjs/platform-express": "^9.0.0",
     "@nestjs/platform-fastify": "^9.4.0",
     "@nestjs/swagger": "^6.3.0",
+    "class-validator": "^0.14.0",
     "cross-env": "^7.0.3",
+    "handlebars": "^4.7.7",
+    "mongoose": "^7.1.1",
+    "mysql2": "^3.3.1",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.2.0",
+    "typeorm": "^0.3.16",
     "yaml": "^2.2.2"
   },
   "devDependencies": {
