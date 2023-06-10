@@ -1,29 +1,40 @@
 import { Provider } from '@nestjs/common';
 import { join } from 'path';
+import { UserEntity } from 'src/user/entities/user.mysql.entity';
 import { DataSource, DataSourceOptions } from 'typeorm';
 import { getConfig } from 'utils';
 
 // 设置数据库类型
-const databaseType: DataSourceOptions['type'] = 'mongodb';
-const { MONGODB_CONFIG } = getConfig();
+const databaseType: DataSourceOptions['type'] = 'mysql';
+const { MYSQL_CONFIG, MONGODB_CONFIG } = getConfig();
 
-const MONGODB_DATABASE_CONFIG: DataSourceOptions = {
+export const MONGODB_DATABASE_CONFIG: DataSourceOptions = {
   ...MONGODB_CONFIG,
   type: databaseType,
   entities: [
-    join(__dirname, `../../**/*.${MONGODB_CONFIG.entities}.entity{.ts,.js}`),
+    join(__dirname, `../../**/**/*.${MONGODB_CONFIG.entities}.entity{.ts,.js}`),
   ],
 };
 
-const MONGODB_DATA_SOURCE = new DataSource(MONGODB_DATABASE_CONFIG);
+export const MYSQL_DATABASE_CONFIG: DataSourceOptions = {
+  ...MYSQL_CONFIG,
+  type: databaseType,
+  // entities: [
+  //   UserEntity,
+  // join(__dirname, `../../**/**/*.${MYSQL_CONFIG.entities}.entity{.ts,.js}`),
+  // ],
+  logging: true,
+};
+
+const MYSQL_DATA_SOURCE = new DataSource(MYSQL_DATABASE_CONFIG);
 
 // 数据库注入
 export const DatabaseProviders: Provider[] = [
   {
-    provide: 'MONGODB_DATA_SOURCE',
+    provide: 'MYSQL_DATA_SOURCE',
     useFactory: async () => {
-      await MONGODB_DATA_SOURCE.initialize();
-      return MONGODB_DATA_SOURCE;
+      await MYSQL_DATA_SOURCE.initialize();
+      return MYSQL_DATA_SOURCE;
     },
   },
 ];

@@ -1,11 +1,11 @@
-import { Provider } from '@nestjs/common';
-import { User } from './user.mongo.entity';
+import { DataSource } from 'typeorm';
+import { UserEntity } from './entities/user.mysql.entity';
 
-export const UserProvider: Provider[] = [
+export const userProviders = [
   {
     provide: 'USER_REPOSITORY',
-    useFactory: async (AppDataSource) =>
-      await AppDataSource.getRepository(User),
-    inject: ['MONGODB_DATA_SOURCE'],
+    useFactory: (dataSource: DataSource) =>
+      dataSource.getRepository(UserEntity),
+    inject: ['DATA_SOURCE'],
   },
 ];

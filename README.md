@@ -1,5 +1,7 @@
 # Nest
 
+https://github.com/Ignition-Space/fast-gateway
+
 ## 基础
 
 ### 控制反转 IoC
@@ -669,6 +671,38 @@ DATABASE_PASSWORD=test
    export class UserModule {}
    ```
 
+## 自定义日志
+
+### 开启默认 logger
+
+NestJS 框架自带了 log 插件，如果只是普通使用，直接开启日志功能即可：
+
+```typescript
+const app = await NestFactory.create(ApplicationModule, { logger: true });
+```
+
+但我们为了框架的性能使用 Fastify 来替换底层框架之后，需要使用下述代码来开启 Fastify 的日志系统：
+
+```typescript
+const app = await NestFactory.create<NestFastifyApplication>(
+  AppModule,
+  new FastifyAdapter({
+    logger: true,
+  }),
+);
+```
+
+### 自定义 Logger
+
+1. 安装几个必要的依赖：
+
+   ```csharp
+   npm i fast-json-parse // 格式化返回对象
+   npm i pino-multi-stream // 替换输出流
+   npm i split2 // 处理文本流
+   npm i dayjs // 可选，如果自己写时间格式化函数可以不用
+   ```
+
 ## 静态资源与模板渲染
 
 ### 静态资源
@@ -683,8 +717,8 @@ DATABASE_PASSWORD=test
 
     ```typescript
     app.useStaticAssets({
-    root: join(\_\_dirname, '..', 'public'),
-    prefix: '/public/',
+      root: join(\_\_dirname, '..', 'public'),
+      prefix: '/public/',
     });
     ```
 
@@ -724,3 +758,33 @@ DATABASE_PASSWORD=test
    ],
    "watchAssets": true
    ```
+
+## 使用 express
+
+1. 修改`main.ts`
+
+   ```typescript
+   const app = await NestFactory.create(AppModule);
+   ```
+
+### 安装依赖
+
+    ```bash
+    npm install --save @nestjs/passport passport passport-local
+    npm install --save-dev @types/passport-local
+    # jwt
+    npm install --save @nestjs/jwt passport-jwt
+    npm install @types/passport-jwt --save-dev
+
+    # @nest/jwt 包是一个实用程序包，可以帮助 jwt 操作.
+    # passport-jwt 包是实现 JWT 策略的 Passport包.
+    # @types/passport-jwt 提供 TypeScript 类型定义.
+    ```
+
+    ```json
+    "ts-enum-util": "^4.0.2"
+    "@nestjs/typeorm": "^9.0.1"
+    "class-transformer": "^0.5.1"
+    "express": "^4.18.2"
+    "hbs": "^4.2.0"
+    ```

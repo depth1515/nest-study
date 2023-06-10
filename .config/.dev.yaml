@@ -10,14 +10,36 @@ MONGODB_CONFIG:
   entities: "mongo"                  # 自定义加载类型
   logging: false                     # 数据库打印日志
   synchronize: true                  # 是否开启同步数据表功能
+
+# MongoDB 是无模式的，所以即使在配置参数开启了 synchronize，启动项目的时候也不会去数据库创建对应的表，所以不用奇怪，并没有出错，但 Mysql 在每次应用程序启动时自动同步表结构，容易造成数据丢失，生产环境记得关闭，以免造成无可预计的损失。
+
 MYSQL_CONFIG:
-  name: "user-test"
+  name: "user-test2"
   type: "mysql"
   host: "localhost"
   port: 3306
-  username: "xxxx"
-  password: "123456"
-  database: "user-test"
-  entities: "mysql" # 这里的命名一定要跟 MongoDB 里面的配置命名区分开
+  username: "root"
+  password: "123123"
+  database: "user-test2"
+  # autoLoadEntities: true
   synchronize: true
-# MongoDB 是无模式的，所以即使在配置参数开启了 synchronize，启动项目的时候也不会去数据库创建对应的表，所以不用奇怪，并没有出错，但 Mysql 在每次应用程序启动时自动同步表结构，容易造成数据丢失，生产环境记得关闭，以免造成无可预计的损失。
+  supportBigNumbers: true
+  bigNumberStrings: true
+
+# 权限 白名单配置
+perm:
+  router:
+    whitelist: [{ path: '/api/register', method: 'POST'  }, { path: '/api/login', method: 'POST' }, { path: '/api/perm/{id}', method: 'GET' }, { path: '/api/oss/upload', method: 'POST' }]
+
+# redis 配置
+redis:
+  host: 'localhost'
+  port: 6379
+  db: 0
+  keyPrefix: 'nest:'
+
+# jwt 配置
+jwt:
+  secretkey: 'zANDwNQVFzxlfG9myPxVWAkq4iXJEPhI'
+  expiresin: '1h'
+  refreshExpiresIn: '2h'
